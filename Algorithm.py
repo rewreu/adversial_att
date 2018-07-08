@@ -24,42 +24,33 @@ def fgsm(steps, model, criterion, variable, x, y, eps, alpha):
     variable.grad.data.fill_(0)
     return variable
 
-
-import numpy as np
-from torch.autograd import Variable
-import copy
-from torch.autograd.gradcheck import zero_gradients
-
 def deepfool(steps, model, criterion, variable, x, y, eps, alpha):
     num_classes=10
     overshoot=0.02
-    max_iter= steps
-    net = model
-    image = variable
-    f_image = net.forward(image).data.cpu().numpy().flatten()
+    image = variable.clone()
+    f_image = model.forward(image).data.cpu().numpy().flatten()
     I = (np.array(f_image)).flatten().argsort()[::-1]
     I = I[0:num_classes]
     label = I[0]
 
-    input_shape = image.cpu().detach().numpy().shape
-    pert_image = copy.deepcopy(image)
-    w = np.zeros(input_shape)
-    r_tot = np.zeros(input_shape)
-
-    loop_i = 0
-
-    x = variable
-    fs = net.forward(x)
+    pert_image = image.clone()
+    w = np.zeros(image.shape)
+    r_tot = np.zeros(image.shape)
+    
+    x0 = torch.tensor(variable.data).requires_grad_()
+    fs = model.forward(x0)
     fs_list = [fs[0,I[k]] for k in range(num_classes)]
     k_i = label
-    while k_i == label and loop_i < max_iter:
+
+    loop_i = 0
+    while k_i == label and loop_i < steps:
         pert = np.inf
         fs[0, I[0]].backward(retain_graph=True)
-        grad_orig = x.grad.data.cpu().numpy().copy()
+        grad_orig = x0.grad.data.cpu().numpy().copy()
         for k in range(1, num_classes):
-            zero_gradients(x)
+            x0.grad.data.fill_(0)
             fs[0, I[k]].backward(retain_graph=True)
-            cur_grad = x.grad.data.cpu().numpy().copy()
+            cur_grad = x0.grad.data.cpu().numpy().copy()
             # set new w_k and new f_k
             w_k = cur_grad - grad_orig
             f_k = (fs[0, I[k]] - fs[0, I[0]]).data.cpu().numpy()
@@ -73,8 +64,8 @@ def deepfool(steps, model, criterion, variable, x, y, eps, alpha):
         r_i =  (pert+1e-4) * w / np.linalg.norm(w)
         r_tot = np.float32(r_tot + r_i)
         pert_image = image + (1+overshoot)*torch.from_numpy(r_tot).cuda()
-        x = Variable(pert_image, requires_grad=True)
-        fs = net.forward(x)
+        x0 = torch.tensor(pert_image.data).requires_grad_()
+        fs = model.forward(x0)
         k_i = np.argmax(fs.data.cpu().numpy().flatten())
         loop_i += 1
     r_tot = (1+overshoot)*r_tot
