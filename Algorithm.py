@@ -3,7 +3,16 @@ import numpy as np
 
 def fgsm(steps, model, criterion, variable, x, y, eps, alpha):
     """
-    Fast sign gradient method, the steps arg is not used here. 
+    fast gradient sign attacking method
+    :param steps: N/A for this algorithm
+    :param model: the image classification model
+    :param criterion: the loss function
+    :param variable: image
+    :param x: a copy of image, same as variable
+    :param y: the target
+    :param eps: the max margin image can be altered
+    :param alpha: attacking size
+    :return: a non-targeted attacked image
     """
     fc_out = model(variable)
     loss = criterion(fc_out, y)
@@ -14,6 +23,18 @@ def fgsm(steps, model, criterion, variable, x, y, eps, alpha):
     return variable
 
 def i_fgsm(steps, model, criterion, variable, x, y, eps, alpha):
+    """
+    iterative fast gradient sign attacking method
+    :param steps: max number of iteration for searching the attack image
+    :param model: the image classification model
+    :param criterion: the loss function
+    :param variable: image
+    :param x: a copy of image, same as variable
+    :param y: the target
+    :param eps: the max margin image can be altered
+    :param alpha: attacking size
+    :return: a non-targeted attacked image
+    """
     for i in range(steps):
         fc_out = model(variable)
         loss = criterion(fc_out, y)
@@ -26,6 +47,18 @@ def i_fgsm(steps, model, criterion, variable, x, y, eps, alpha):
     return variable
 
 def deepfool(steps, model, criterion, variable, x, y, eps, alpha):
+    """
+    deepfool attacking method
+    :param steps: max number of iteration for searching the attack image
+    :param model: the image classification model
+    :param criterion: N/A for this algorithm
+    :param variable: image
+    :param x: a copy of image, same as variable
+    :param y: N/A for this algorithm
+    :param eps: N/A for this algorithm
+    :param alpha: N/A for this algorithm
+    :return: a non-targeted attacked image
+    """
     num_classes, overshoot = 10, 0.02
     f_image = model.forward(x).data.cpu().numpy().flatten()
     I = (np.array(f_image)).flatten().argsort()[::-1]
